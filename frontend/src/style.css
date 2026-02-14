@@ -48,6 +48,38 @@ body {
   margin-bottom: 6px;
 }
 
+#model-picker {
+  margin-bottom: 14px;
+}
+
+#model-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#model-buttons button {
+  width: 60px;
+  height: 32px;
+  border: 1px solid rgba(100, 100, 200, 0.3);
+  border-radius: 6px;
+  background: rgba(40, 40, 80, 0.6);
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#model-buttons button:hover {
+  background: rgba(80, 80, 160, 0.6);
+}
+
+#model-buttons button.active {
+  background: rgba(80, 80, 200, 0.8);
+  color: #fff;
+  border-color: rgba(120, 120, 255, 0.6);
+}
+
 #digit-picker {
   margin-bottom: 14px;
 }

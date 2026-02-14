@@ -1,14 +1,44 @@
 import * as THREE from "three";
-import { NEURON_RADIUS, NEURON_SPACING } from "./constants.js";
+import { NEURON_RADIUS } from "./constants.js";
 
 const INACTIVE_COLOR = new THREE.Color(0x222233);
 
 // Compute the 3D position for neuron `idx` within a layer
 function neuronPosition(layer, idx) {
+  if (layer.type === "conv2d") {
+    return convNeuronPosition(layer, idx);
+  }
+
   const col = idx % layer.cols;
   const row = Math.floor(idx / layer.cols);
-  const x = (col - (layer.cols - 1) / 2) * NEURON_SPACING;
-  const y = ((layer.rows - 1) / 2 - row) * NEURON_SPACING;
+  const x = (col - (layer.cols - 1) / 2) * layer.spacing;
+  const y = ((layer.rows - 1) / 2 - row) * layer.spacing;
+  return new THREE.Vector3(x, y, layer.z);
+}
+
+// Position for a conv2d neuron given flat index
+function convNeuronPosition(layer, idx) {
+  const { mapW, mapH, gridCols, mapGap, spacing } = layer;
+  const mapSize = mapW * mapH;
+  const channel = Math.floor(idx / mapSize);
+  const withinMap = idx % mapSize;
+  const mapRow = Math.floor(withinMap / mapW);
+  const mapCol = withinMap % mapW;
+
+  // Which tile in the grid
+  const tileCol = channel % gridCols;
+  const tileRow = Math.floor(channel / gridCols);
+
+  // Total extent for centering
+  const totalW = layer.cols; // gridCols * mapW + (gridCols - 1) * mapGap
+  const totalH = layer.rows; // gridRows * mapH + (gridRows - 1) * mapGap
+
+  // Pixel position within the full tiled grid
+  const px = tileCol * (mapW + mapGap) + mapCol;
+  const py = tileRow * (mapH + mapGap) + mapRow;
+
+  const x = (px - (totalW - 1) / 2) * spacing;
+  const y = ((totalH - 1) / 2 - py) * spacing;
   return new THREE.Vector3(x, y, layer.z);
 }
 
@@ -42,11 +72,13 @@ export function buildNeurons(scene, layers) {
 export function buildConnections(scene, weightsData, layers, weightLayers) {
   const connectionMeshes = {};
 
-  for (let i = 0; i < weightLayers.length; i++) {
-    const weightName = weightLayers[i];
-    const srcLayer = layers[i];
-    const dstLayer = layers[i + 1];
-    const connections = weightsData[weightName];
+  for (const wl of weightLayers) {
+    const { weightKey, srcIdx, dstIdx } = wl;
+    const srcLayer = layers[srcIdx];
+    const dstLayer = layers[dstIdx];
+    const connections = weightsData[weightKey];
+
+    if (!connections) continue;
 
     const positions = [];
     const colors = [];
@@ -81,7 +113,7 @@ export function buildConnections(scene, weightsData, layers, weightLayers) {
 
     const lines = new THREE.LineSegments(geometry, material);
     scene.add(lines);
-    connectionMeshes[weightName] = lines;
+    connectionMeshes[weightKey] = lines;
   }
 
   return connectionMeshes;
@@ -109,8 +141,9 @@ export function resetAllLayers(layerMeshes, layers) {
 }
 
 export function resetConnections(connectionMeshes, weightLayers) {
-  for (const name of weightLayers) {
-    connectionMeshes[name].material.opacity = 0;
+  for (const wl of weightLayers) {
+    const mesh = connectionMeshes[wl.weightKey];
+    if (mesh) mesh.material.opacity = 0;
   }
 }
 

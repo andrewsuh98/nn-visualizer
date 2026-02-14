@@ -106,23 +106,36 @@ function tweenLayerColors(layerMeshes, layer, targetColors, duration) {
   });
 }
 
+// Build a lookup from layer index to its weightLayer entry (if any)
+function buildWeightLookup(layers, weightLayers) {
+  const lookup = {};
+  for (const wl of weightLayers) {
+    lookup[wl.dstIdx] = wl;
+  }
+  return lookup;
+}
+
 // Run the full feedforward animation sequence
 export async function animateFeedforward(layerMeshes, connectionMeshes, activations, layers, weightLayers) {
   resetAllLayers(layerMeshes, layers);
   resetConnections(connectionMeshes, weightLayers);
+
+  const weightLookup = buildWeightLookup(layers, weightLayers);
 
   // Step 1: Light up input layer
   const inputLayer = layers[0];
   const inputColors = layerColors(inputLayer.name, activations.input);
   await tweenLayerColors(layerMeshes, inputLayer, inputColors, ANIMATION_TWEEN_MS);
 
-  // Steps 2+: For each subsequent layer, fade in connections then color neurons
+  // Steps 2+: For each subsequent layer, fade in connections (if any) then color neurons
   for (let i = 1; i < layers.length; i++) {
     await sleep(ANIMATION_LAYER_DELAY);
 
-    // Fade in connections
-    const weightName = weightLayers[i - 1];
-    await tweenOpacity(connectionMeshes[weightName], 0.6, ANIMATION_TWEEN_MS);
+    // Fade in connections if this layer has weight connections
+    const wl = weightLookup[i];
+    if (wl && connectionMeshes[wl.weightKey]) {
+      await tweenOpacity(connectionMeshes[wl.weightKey], 0.6, ANIMATION_TWEEN_MS);
+    }
 
     // Color neurons
     const layer = layers[i];

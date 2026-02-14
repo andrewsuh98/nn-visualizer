@@ -10,7 +10,7 @@ export function createScene(container) {
     60,
     container.clientWidth / container.clientHeight,
     0.1,
-    500
+    1000
   );
   camera.position.set(-70, 25, 110);
   camera.lookAt(0, 0, 45);
