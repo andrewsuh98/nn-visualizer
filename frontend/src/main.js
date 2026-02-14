@@ -356,11 +356,11 @@ async function runDrawInference() {
   const pct = (maxProb * 100).toFixed(1);
   const resultText = document.getElementById("result-text");
   resultText.textContent = `Predicted: ${data.prediction} (${pct}%)`;
-  // Red (<40%) -> Yellow (~75%) -> Green (>95%)
+  // Soft red -> yellow -> green based on confidence
   const t = Math.max(0, Math.min(1, (maxProb - 0.4) / 0.55));
-  const r = t < 0.5 ? 255 : Math.round(255 * (1 - t) * 2);
-  const g = t < 0.5 ? Math.round(255 * t * 2) : 255;
-  resultText.style.color = `rgb(${r}, ${g}, 50)`;
+  const r = t < 0.5 ? 240 : Math.round(120 + 120 * (1 - t) * 2);
+  const g = t < 0.5 ? Math.round(120 + 120 * t * 2) : 240;
+  resultText.style.color = `rgb(${r}, ${g}, 90)`;
   document.getElementById("result").classList.remove("hidden");
 
   document.getElementById("replay-btn").disabled = false;
