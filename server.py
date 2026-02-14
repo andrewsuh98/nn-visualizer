@@ -1,3 +1,4 @@
+import os
 import random
 
 import torch
@@ -10,7 +11,8 @@ from torchvision import datasets, transforms
 from main import MLP, CNN
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+cors_origin = os.environ.get("CORS_ORIGIN", "*")
+app.add_middleware(CORSMiddleware, allow_origins=[cors_origin], allow_methods=["*"], allow_headers=["*"])
 
 # Load both models into a registry
 MODELS = {}
