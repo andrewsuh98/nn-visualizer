@@ -4,6 +4,7 @@ export const NEURON_SPACING_CONV = 0.8;
 
 export const ANIMATION_LAYER_DELAY = 800;
 export const ANIMATION_TWEEN_MS = 300;
+export const CAMERA_TWEEN_MS = 600;
 
 export const BG_COLOR = 0x1a1a2e;
 

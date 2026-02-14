@@ -4,7 +4,7 @@ import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections } from "./network.js";
 import { fetchArchitecture, fetchSamples, fetchInference, fetchWeights, setModel } from "./api.js";
 import { animateFeedforward } from "./activations.js";
-import { buildLayerConfig, Z_SPACING } from "./constants.js";
+import { buildLayerConfig, Z_SPACING, CAMERA_TWEEN_MS } from "./constants.js";
 
 let layerMeshes = null;
 let connectionMeshes = null;
@@ -13,6 +13,8 @@ let layers = null;
 let weightLayers = null;
 let currentActivations = null;
 let pinnedNeuron = null;
+let isFirstInit = true;
+let cameraTweenId = null;
 
 // Initialize Three.js scene
 const container = document.getElementById("canvas-container");
@@ -103,6 +105,37 @@ renderer.domElement.addEventListener("click", (e) => {
   }
 });
 
+function tweenCamera(targetPos, targetLookAt, duration) {
+  if (cameraTweenId !== null) {
+    cancelAnimationFrame(cameraTweenId);
+    cameraTweenId = null;
+  }
+
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const startTime = performance.now();
+
+  return new Promise((resolve) => {
+    function tick() {
+      const elapsed = performance.now() - startTime;
+      const raw = Math.min(elapsed / duration, 1);
+      const t = 1 - (1 - raw) * (1 - raw); // ease-out quadratic
+
+      camera.position.lerpVectors(startPos, targetPos, t);
+      controls.target.lerpVectors(startTarget, targetLookAt, t);
+      controls.update();
+
+      if (raw < 1) {
+        cameraTweenId = requestAnimationFrame(tick);
+      } else {
+        cameraTweenId = null;
+        resolve();
+      }
+    }
+    cameraTweenId = requestAnimationFrame(tick);
+  });
+}
+
 // Track all scene objects for teardown
 let sceneObjects = [];
 
@@ -183,9 +216,17 @@ async function init() {
   const camZ = zCenter + dist * cosA;
   const camY = dist * 0.25;
 
-  controls.target.set(0, 0, zCenter);
-  camera.position.set(camX, camY, camZ);
-  controls.update();
+  const newTarget = new THREE.Vector3(0, 0, zCenter);
+  const newPos = new THREE.Vector3(camX, camY, camZ);
+
+  if (isFirstInit) {
+    camera.position.copy(newPos);
+    controls.target.copy(newTarget);
+    controls.update();
+    isFirstInit = false;
+  } else {
+    tweenCamera(newPos, newTarget, CAMERA_TWEEN_MS);
+  }
 
   // Build legend dynamically
   const legendContainer = document.getElementById("legend-layers");
