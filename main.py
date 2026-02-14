@@ -102,8 +102,8 @@ def main():
 
     print(f"Final test accuracy: {accuracy:.2f}%")
 
-    torch.save(model.state_dict(), "mnist_mlp.pth")
-    print("Model saved to mnist_mlp.pth")
+    torch.save(model.state_dict(), "models/mnist_mlp.pth")
+    print("Model saved to models/mnist_mlp.pth")
 
 
 if __name__ == "__main__":

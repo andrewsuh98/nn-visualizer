@@ -12,7 +12,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # Load model
 model = MLP()
-model.load_state_dict(torch.load("mnist_mlp.pth", map_location="cpu", weights_only=True))
+model.load_state_dict(torch.load("models/mnist_mlp.pth", map_location="cpu", weights_only=True))
 model.eval()
 
 # Two copies of test set: raw (0-1) for display, normalized for inference
