@@ -292,7 +292,21 @@ modelButtonsContainer.addEventListener("click", async (e) => {
 
   teardownScene();
   await init();
+
+  // If the drawing canvas has content, re-run inference with the new model
+  if (canvasHasDrawing()) {
+    runDrawInference();
+  }
 });
+
+function canvasHasDrawing() {
+  const imageData = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] > 0) return true; // any non-black pixel in red channel
+  }
+  return false;
+}
 
 // --- Drawing canvas ---
 const drawCanvas = document.getElementById("draw-canvas");
