@@ -1,4 +1,5 @@
 import "./style.css";
+import * as THREE from "three";
 import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections } from "./network.js";
 import { fetchArchitecture, fetchSamples, fetchInference, fetchWeights, setModel } from "./api.js";
@@ -10,10 +11,97 @@ let connectionMeshes = null;
 let selectedIndex = null;
 let layers = null;
 let weightLayers = null;
+let currentActivations = null;
+let pinnedNeuron = null;
 
 // Initialize Three.js scene
 const container = document.getElementById("canvas-container");
-const { scene, camera, controls } = createScene(container);
+const { scene, camera, renderer, controls } = createScene(container);
+
+// --- Raycaster + tooltip ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltipEl = document.getElementById("neuron-tooltip");
+
+function findNeuronAtMouse() {
+  if (!layerMeshes || !layers) return null;
+  raycaster.setFromCamera(mouse, camera);
+
+  let closest = null;
+  for (const layer of layers) {
+    const mesh = layerMeshes[layer.name];
+    if (!mesh) continue;
+    const hits = raycaster.intersectObject(mesh);
+    if (hits.length > 0) {
+      const hit = hits[0];
+      if (!closest || hit.distance < closest.distance) {
+        closest = {
+          layerName: layer.name,
+          displayName: layer.displayName,
+          instanceId: hit.instanceId,
+          distance: hit.distance,
+        };
+      }
+    }
+  }
+  return closest;
+}
+
+function showTooltip(layerName, displayName, instanceId, clientX, clientY) {
+  let activationText = "N/A";
+  if (currentActivations && currentActivations[layerName]) {
+    const vals = currentActivations[layerName];
+    if (instanceId < vals.length) {
+      activationText = vals[instanceId].toFixed(4);
+    }
+  }
+
+  tooltipEl.innerHTML =
+    `<strong>${displayName}</strong><br>` +
+    `Neuron: ${instanceId}<br>` +
+    `Activation: ${activationText}`;
+  tooltipEl.classList.remove("hidden");
+
+  // Position near cursor, clamped to viewport
+  const pad = 15;
+  let x = clientX + pad;
+  let y = clientY + pad;
+  const rect = tooltipEl.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth) x = clientX - pad - rect.width;
+  if (y + rect.height > window.innerHeight) y = clientY - pad - rect.height;
+  tooltipEl.style.left = x + "px";
+  tooltipEl.style.top = y + "px";
+}
+
+function hideTooltip() {
+  tooltipEl.classList.add("hidden");
+  pinnedNeuron = null;
+}
+
+renderer.domElement.addEventListener("mousemove", (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  if (pinnedNeuron) return; // tooltip is pinned, don't update on hover
+
+  const hit = findNeuronAtMouse();
+  if (hit) {
+    showTooltip(hit.layerName, hit.displayName, hit.instanceId, e.clientX, e.clientY);
+  } else {
+    hideTooltip();
+  }
+});
+
+renderer.domElement.addEventListener("click", (e) => {
+  const hit = findNeuronAtMouse();
+  if (hit) {
+    pinnedNeuron = { ...hit };
+    showTooltip(hit.layerName, hit.displayName, hit.instanceId, e.clientX, e.clientY);
+  } else {
+    hideTooltip();
+  }
+});
 
 // Track all scene objects for teardown
 let sceneObjects = [];
@@ -27,6 +115,9 @@ function teardownScene() {
   sceneObjects = [];
   layerMeshes = null;
   connectionMeshes = null;
+  currentActivations = null;
+  pinnedNeuron = null;
+  hideTooltip();
 
   // Clear legend
   document.getElementById("legend-layers").innerHTML = "";
@@ -208,8 +299,12 @@ document.getElementById("run-btn").addEventListener("click", async () => {
   btn.textContent = "Running...";
   document.getElementById("result").classList.add("hidden");
 
+  currentActivations = null;
+  hideTooltip();
+
   const data = await fetchInference(selectedIndex);
   await animateFeedforward(layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
+  currentActivations = data.activations;
 
   // Show result
   const maxProb = Math.max(...data.activations.probabilities);

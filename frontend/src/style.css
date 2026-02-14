@@ -272,3 +272,22 @@ body {
   font-style: italic;
   margin-top: 2px;
 }
+
+#neuron-tooltip {
+  position: fixed;
+  z-index: 100;
+  background: rgba(16, 16, 32, 0.95);
+  border: 1px solid rgba(100, 100, 200, 0.5);
+  border-radius: 8px;
+  padding: 10px 12px;
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e0e0e0;
+  backdrop-filter: blur(10px);
+  max-width: 220px;
+}
+
+#neuron-tooltip.hidden {
+  display: none;
+}
