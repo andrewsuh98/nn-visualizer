@@ -16,6 +16,8 @@ export function createScene(container) {
   camera.lookAt(0, 0, 45);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.4;
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
