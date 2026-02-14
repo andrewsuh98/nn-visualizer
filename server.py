@@ -1,6 +1,7 @@
 import random
 
 import torch
+import torch.nn as nn
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from torchvision import datasets, transforms
@@ -14,6 +15,13 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 model = MLP()
 model.load_state_dict(torch.load("models/mnist_mlp.pth", map_location="cpu", weights_only=True))
 model.eval()
+
+# Discover Linear layers in order
+linear_layers: list[tuple[str, nn.Linear]] = [
+    (name, module)
+    for name, module in model.named_modules()
+    if isinstance(module, nn.Linear)
+]
 
 # Two copies of test set: raw (0-1) for display, normalized for inference
 raw_transform = transforms.ToTensor()
@@ -32,18 +40,56 @@ for i, (_, label) in enumerate(raw_dataset):
 
 
 def get_activations(x_normalized: torch.Tensor) -> dict:
+    """Run forward pass with hooks on each Linear layer to capture activations."""
+    captured: dict[str, torch.Tensor] = {}
+
+    hooks = []
+    for name, layer in linear_layers:
+        def make_hook(n):
+            def hook_fn(module, input, output):
+                captured[n] = output
+            return hook_fn
+        hooks.append(layer.register_forward_hook(make_hook(name)))
+
     with torch.no_grad():
         flat = x_normalized.view(1, -1)
-        fc1_out = model.relu(model.fc1(flat))
-        fc2_out = model.relu(model.fc2(fc1_out))
-        logits = model.fc3(fc2_out)
+        logits = model(flat)
         probs = torch.softmax(logits, dim=1)
-    return {
-        "fc1_relu": fc1_out.squeeze().tolist(),
-        "fc2_relu": fc2_out.squeeze().tolist(),
-        "logits": logits.squeeze().tolist(),
-        "probabilities": probs.squeeze().tolist(),
-    }
+
+    for h in hooks:
+        h.remove()
+
+    result = {}
+    for i, (name, layer) in enumerate(linear_layers):
+        is_last = i == len(linear_layers) - 1
+        raw_out = captured[name].squeeze()
+        if is_last:
+            result["logits"] = raw_out.tolist()
+            result["probabilities"] = probs.squeeze().tolist()
+        else:
+            # Apply ReLU to match what the model does internally
+            result[f"{name}_relu"] = torch.relu(raw_out).tolist()
+
+    return result
+
+
+@app.get("/api/architecture")
+def architecture():
+    layers = []
+    # Input layer: in_features of the first Linear layer
+    input_size = linear_layers[0][1].in_features
+    layers.append({"name": "input", "size": input_size, "type": "input"})
+
+    for i, (name, module) in enumerate(linear_layers):
+        is_last = i == len(linear_layers) - 1
+        layers.append({
+            "name": name,
+            "size": module.out_features,
+            "type": "linear",
+            "activation": "softmax" if is_last else "relu",
+        })
+
+    return {"layers": layers}
 
 
 @app.get("/api/samples")
@@ -82,15 +128,10 @@ def inference(index: int):
 def weights():
     top_k = 5
     result = {}
-    for name, dst_size in [
-        ("fc1", 128),
-        ("fc2", 64),
-        ("fc3", 10),
-    ]:
-        layer = getattr(model, name)
-        w = layer.weight.data  # shape: (dst_size, src_size)
+    for name, layer in linear_layers:
+        w = layer.weight.data  # shape: (out_features, in_features)
         connections = []
-        for dst in range(dst_size):
+        for dst in range(layer.out_features):
             row = w[dst]
             _, top_indices = row.abs().topk(top_k)
             for src_idx in top_indices.tolist():

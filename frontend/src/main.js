@@ -1,33 +1,59 @@
 import "./style.css";
 import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections } from "./network.js";
-import { fetchSamples, fetchInference, fetchWeights } from "./api.js";
+import { fetchArchitecture, fetchSamples, fetchInference, fetchWeights } from "./api.js";
 import { animateFeedforward } from "./activations.js";
+import { buildLayerConfig } from "./constants.js";
 
 let layerMeshes = null;
 let connectionMeshes = null;
 let selectedIndex = null;
+let layers = null;
+let weightLayers = null;
 
 // Initialize Three.js scene
 const container = document.getElementById("canvas-container");
 const { scene } = createScene(container);
 
-// Build neuron geometry immediately
-layerMeshes = buildNeurons(scene);
+// Fetch architecture and weights, then build geometry
+async function init() {
+  const [archData, weightsData] = await Promise.all([
+    fetchArchitecture(),
+    fetchWeights(),
+  ]);
 
-// Load weights and build connections
-fetchWeights().then((data) => {
-  connectionMeshes = buildConnections(scene, data);
-});
+  const config = buildLayerConfig(archData);
+  layers = config.layers;
+  weightLayers = config.weightLayers;
+
+  layerMeshes = buildNeurons(scene, layers);
+  connectionMeshes = buildConnections(scene, weightsData, layers, weightLayers);
+
+  // Build legend dynamically
+  const legendContainer = document.getElementById("legend-layers");
+  for (const layer of layers) {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<span class="legend-dot"></span>${layer.displayName}`;
+    legendContainer.appendChild(item);
+  }
+
+  // Build digit buttons from output layer size
+  const outputLayer = layers[layers.length - 1];
+  const numDigits = outputLayer.size;
+  const digitButtonsContainer = document.getElementById("digit-buttons");
+  for (let d = 0; d < numDigits; d++) {
+    const btn = document.createElement("button");
+    btn.textContent = d;
+    btn.addEventListener("click", () => selectDigit(d));
+    digitButtonsContainer.appendChild(btn);
+  }
+}
+
+init();
 
 // --- Digit picker ---
 const digitButtonsContainer = document.getElementById("digit-buttons");
-for (let d = 0; d < 10; d++) {
-  const btn = document.createElement("button");
-  btn.textContent = d;
-  btn.addEventListener("click", () => selectDigit(d));
-  digitButtonsContainer.appendChild(btn);
-}
 
 async function selectDigit(digit) {
   // Update active button
@@ -48,14 +74,19 @@ function renderThumbnails(samples) {
   const strip = document.getElementById("sample-thumbnails");
   strip.innerHTML = "";
 
+  // Derive image dimensions from input layer
+  const inputLayer = layers[0];
+  const side = inputLayer.cols;
+  const pixelCount = inputLayer.size;
+
   for (const sample of samples) {
     const canvas = document.createElement("canvas");
-    canvas.width = 28;
-    canvas.height = 28;
+    canvas.width = side;
+    canvas.height = Math.ceil(pixelCount / side);
     const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(28, 28);
+    const imgData = ctx.createImageData(canvas.width, canvas.height);
 
-    for (let i = 0; i < 784; i++) {
+    for (let i = 0; i < pixelCount; i++) {
       const v = Math.round(sample.pixels[i] * 255);
       imgData.data[i * 4] = v;
       imgData.data[i * 4 + 1] = v;
@@ -85,7 +116,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
   document.getElementById("result").classList.add("hidden");
 
   const data = await fetchInference(selectedIndex);
-  await animateFeedforward(layerMeshes, connectionMeshes, data.activations);
+  await animateFeedforward(layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
 
   // Show result
   const maxProb = Math.max(...data.activations.probabilities);

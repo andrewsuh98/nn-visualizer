@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { LAYERS, NEURON_RADIUS, NEURON_SPACING, WEIGHT_LAYERS } from "./constants.js";
+import { NEURON_RADIUS, NEURON_SPACING } from "./constants.js";
 
 const INACTIVE_COLOR = new THREE.Color(0x222233);
 
@@ -12,16 +12,15 @@ function neuronPosition(layer, idx) {
   return new THREE.Vector3(x, y, layer.z);
 }
 
-export function buildNeurons(scene) {
+export function buildNeurons(scene, layers) {
   const geometry = new THREE.SphereGeometry(NEURON_RADIUS, 12, 8);
   const layerMeshes = {};
 
-  for (const layer of LAYERS) {
+  for (const layer of layers) {
     const material = new THREE.MeshPhongMaterial({ color: 0xffffff });
     const mesh = new THREE.InstancedMesh(geometry, material, layer.size);
 
     const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
 
     for (let i = 0; i < layer.size; i++) {
       const pos = neuronPosition(layer, i);
@@ -40,13 +39,13 @@ export function buildNeurons(scene) {
   return layerMeshes;
 }
 
-export function buildConnections(scene, weightsData) {
+export function buildConnections(scene, weightsData, layers, weightLayers) {
   const connectionMeshes = {};
 
-  for (let i = 0; i < WEIGHT_LAYERS.length; i++) {
-    const weightName = WEIGHT_LAYERS[i];
-    const srcLayer = LAYERS[i];
-    const dstLayer = LAYERS[i + 1];
+  for (let i = 0; i < weightLayers.length; i++) {
+    const weightName = weightLayers[i];
+    const srcLayer = layers[i];
+    const dstLayer = layers[i + 1];
     const connections = weightsData[weightName];
 
     const positions = [];
@@ -99,8 +98,8 @@ export function setLayerColors(layerMeshes, layerName, colorArray) {
   mesh.instanceColor.needsUpdate = true;
 }
 
-export function resetAllLayers(layerMeshes) {
-  for (const layer of LAYERS) {
+export function resetAllLayers(layerMeshes, layers) {
+  for (const layer of layers) {
     const mesh = layerMeshes[layer.name];
     for (let i = 0; i < layer.size; i++) {
       mesh.setColorAt(i, INACTIVE_COLOR);
@@ -109,8 +108,8 @@ export function resetAllLayers(layerMeshes) {
   }
 }
 
-export function resetConnections(connectionMeshes) {
-  for (const name of WEIGHT_LAYERS) {
+export function resetConnections(connectionMeshes, weightLayers) {
+  for (const name of weightLayers) {
     connectionMeshes[name].material.opacity = 0;
   }
 }

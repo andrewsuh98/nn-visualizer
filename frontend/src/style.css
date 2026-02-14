@@ -147,3 +147,96 @@ body {
 #result-text {
   color: #aaffaa;
 }
+
+#legend {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(16, 16, 32, 0.9);
+  border: 1px solid rgba(100, 100, 200, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  width: 220px;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+#legend h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0a0ff;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.legend-section {
+  margin-bottom: 12px;
+}
+
+.legend-section:last-child {
+  margin-bottom: 0;
+}
+
+.legend-label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.legend-gradient {
+  height: 10px;
+  border-radius: 3px;
+}
+
+#activation-gradient {
+  background: linear-gradient(to right, #050510, #001a66, #00b3e6, #d9ffff);
+}
+
+#pixel-gradient {
+  background: linear-gradient(to right, #000000, #ffffff);
+}
+
+.legend-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #bbb;
+  margin-bottom: 3px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+}
+
+.legend-note {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+  margin-top: 2px;
+}

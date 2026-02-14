@@ -29,6 +29,46 @@
       </div>
     </div>
 
+    <div id="legend">
+      <h3>Legend</h3>
+
+      <div class="legend-section">
+        <span class="legend-label">Neuron Activation</span>
+        <div class="legend-gradient" id="activation-gradient"></div>
+        <div class="legend-range">
+          <span>Inactive</span>
+          <span>Max</span>
+        </div>
+      </div>
+
+      <div class="legend-section">
+        <span class="legend-label">Input Pixels</span>
+        <div class="legend-gradient" id="pixel-gradient"></div>
+        <div class="legend-range">
+          <span>0 (black)</span>
+          <span>1 (white)</span>
+        </div>
+      </div>
+
+      <div class="legend-section">
+        <span class="legend-label">Connections</span>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: rgb(50, 75, 255);"></span>
+          <span>Positive weight</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: rgb(255, 50, 50);"></span>
+          <span>Negative weight</span>
+        </div>
+        <div class="legend-note">Brightness = magnitude</div>
+      </div>
+
+      <div class="legend-section">
+        <span class="legend-label">Layers</span>
+        <div id="legend-layers"></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

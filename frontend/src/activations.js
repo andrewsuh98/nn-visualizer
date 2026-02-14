@@ -1,4 +1,4 @@
-import { LAYERS, WEIGHT_LAYERS, ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS } from "./constants.js";
+import { ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS } from "./constants.js";
 import { resetAllLayers, resetConnections } from "./network.js";
 
 // Dark-to-cyan gradient: near-black -> deep blue -> bright cyan -> white
@@ -70,15 +70,13 @@ function tweenOpacity(lineMesh, target, duration) {
 }
 
 // Tween layer colors from current to target over duration ms
-function tweenLayerColors(layerMeshes, layerName, targetColors, duration) {
+function tweenLayerColors(layerMeshes, layer, targetColors, duration) {
   return new Promise((resolve) => {
-    const mesh = layerMeshes[layerName];
-    const layer = LAYERS.find((l) => l.name === layerName);
+    const mesh = layerMeshes[layer.name];
     const startColors = [];
 
     // Read current colors
     for (let i = 0; i < layer.size; i++) {
-      // InstancedMesh stores colors in the instanceColor buffer
       const arr = mesh.instanceColor.array;
       startColors.push([arr[i * 3], arr[i * 3 + 1], arr[i * 3 + 2]]);
     }
@@ -109,28 +107,27 @@ function tweenLayerColors(layerMeshes, layerName, targetColors, duration) {
 }
 
 // Run the full feedforward animation sequence
-export async function animateFeedforward(layerMeshes, connectionMeshes, activations) {
-  resetAllLayers(layerMeshes);
-  resetConnections(connectionMeshes);
+export async function animateFeedforward(layerMeshes, connectionMeshes, activations, layers, weightLayers) {
+  resetAllLayers(layerMeshes, layers);
+  resetConnections(connectionMeshes, weightLayers);
 
   // Step 1: Light up input layer
-  const inputColors = layerColors("input", activations.input);
-  await tweenLayerColors(layerMeshes, "input", inputColors, ANIMATION_TWEEN_MS);
+  const inputLayer = layers[0];
+  const inputColors = layerColors(inputLayer.name, activations.input);
+  await tweenLayerColors(layerMeshes, inputLayer, inputColors, ANIMATION_TWEEN_MS);
 
-  // Steps 2-4: For each subsequent layer, fade in connections then color neurons
-  const layerKeys = ["fc1_relu", "fc2_relu", "output"];
-  const activationKeys = ["fc1_relu", "fc2_relu", "probabilities"];
-
-  for (let i = 0; i < layerKeys.length; i++) {
+  // Steps 2+: For each subsequent layer, fade in connections then color neurons
+  for (let i = 1; i < layers.length; i++) {
     await sleep(ANIMATION_LAYER_DELAY);
 
     // Fade in connections
-    const weightName = WEIGHT_LAYERS[i];
+    const weightName = weightLayers[i - 1];
     await tweenOpacity(connectionMeshes[weightName], 0.6, ANIMATION_TWEEN_MS);
 
     // Color neurons
-    const colors = layerColors(layerKeys[i], activations[activationKeys[i]]);
-    await tweenLayerColors(layerMeshes, layerKeys[i], colors, ANIMATION_TWEEN_MS);
+    const layer = layers[i];
+    const colors = layerColors(layer.name, activations[layer.name]);
+    await tweenLayerColors(layerMeshes, layer, colors, ANIMATION_TWEEN_MS);
   }
 
   return activations;
