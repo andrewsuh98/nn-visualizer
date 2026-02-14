@@ -152,8 +152,8 @@ function teardownScene() {
   pinnedNeuron = null;
   hideTooltip();
 
-  // Clear legend
-  document.getElementById("legend-layers").innerHTML = "";
+  // Fade out legend (content swapped in init)
+  document.getElementById("legend-layers").classList.add("fade-out");
 }
 
 // Fetch architecture and weights, then build geometry
@@ -228,14 +228,18 @@ async function init() {
     tweenCamera(newPos, newTarget, CAMERA_TWEEN_MS);
   }
 
-  // Build legend dynamically
+  // Build legend dynamically (crossfade on model switch)
   const legendContainer = document.getElementById("legend-layers");
+  legendContainer.innerHTML = "";
   for (const layer of layers) {
     const item = document.createElement("div");
     item.className = "legend-item";
     item.innerHTML = `<span class="legend-dot"></span>${layer.displayName}`;
     legendContainer.appendChild(item);
   }
+  // Force reflow so the browser registers opacity:0 before removing the class
+  legendContainer.offsetHeight;
+  legendContainer.classList.remove("fade-out");
 
   // Build digit buttons from output layer size
   const outputLayer = layers[layers.length - 1];

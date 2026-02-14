@@ -266,6 +266,14 @@ body {
   flex-shrink: 0;
 }
 
+#legend-layers {
+  transition: opacity 200ms ease;
+}
+
+#legend-layers.fade-out {
+  opacity: 0;
+}
+
 .legend-note {
   font-size: 10px;
   color: #666;
