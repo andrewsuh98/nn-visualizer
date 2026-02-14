@@ -3,7 +3,7 @@ import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections } from "./network.js";
 import { fetchArchitecture, fetchSamples, fetchInference, fetchWeights, setModel } from "./api.js";
 import { animateFeedforward } from "./activations.js";
-import { buildLayerConfig } from "./constants.js";
+import { buildLayerConfig, Z_SPACING } from "./constants.js";
 
 let layerMeshes = null;
 let connectionMeshes = null;
@@ -54,11 +54,46 @@ async function init() {
     sceneObjects.push(connectionMeshes[key]);
   }
 
-  // Reposition camera target to center of network z-extent
-  const zSpacing = 35;
-  const zCenter = (layers.length - 1) * zSpacing / 2;
+  // Dynamically position camera to frame the entire network
+  const zExtent = (layers.length - 1) * Z_SPACING;
+  const zCenter = zExtent / 2;
+
+  // Camera viewing angle in the xz plane (45 deg from z-axis)
+  const angle = Math.PI / 4;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+
+  const vFov = (camera.fov * Math.PI) / 180;
+  const aspect = camera.aspect;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+
+  // For each layer, compute the minimum camera distance so it fits within
+  // the frustum. Layers with positive dz (closer to camera) need extra
+  // distance because they subtend a larger angle.
+  const tanH = Math.tan(hFov / 2);
+  const tanV = Math.tan(vFov / 2);
+  let minDist = 0;
+  for (const layer of layers) {
+    const halfW = (layer.cols * layer.spacing) / 2;
+    const halfH = (layer.rows * layer.spacing) / 2;
+    const dz = layer.z - zCenter; // signed: positive = closer to camera
+    const extentH = Math.abs(dz) * sinA + halfW * cosA;
+    const dH = extentH / tanH + dz * cosA;
+    const dV = halfH / tanV + dz * cosA;
+    const d = Math.max(dH, dV);
+    if (d > minDist) minDist = d;
+  }
+
+  const padding = 1.00;
+  const dist = minDist * padding;
+
+  // Position camera at the computed distance along the quarter-angle direction
+  const camX = -dist * sinA;
+  const camZ = zCenter + dist * cosA;
+  const camY = dist * 0.25;
+
   controls.target.set(0, 0, zCenter);
-  camera.position.set(-70, 25, zCenter + 65);
+  camera.position.set(camX, camY, camZ);
   controls.update();
 
   // Build legend dynamically

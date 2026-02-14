@@ -9,7 +9,7 @@ export const BG_COLOR = 0x1a1a2e;
 
 export const API_BASE = "http://localhost:8000";
 
-const Z_SPACING = 35;
+export const Z_SPACING = 35;
 
 // Build dynamic layer config from architecture response.
 // Each layer gets grid dimensions (cols/rows) and a z-position.
