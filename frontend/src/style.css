@@ -7,7 +7,7 @@
 body {
   overflow: hidden;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: #1a1a2e;
+  background: #1e1e1e;
   color: #e0e0e0;
 }
 
@@ -26,8 +26,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(16, 16, 32, 0.9);
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 10px 16px;
   backdrop-filter: blur(10px);
@@ -37,7 +37,7 @@ body {
 #site-header .site-title {
   font-size: 20px;
   font-weight: 600;
-  color: #a0a0ff;
+  color: #e0e0e0;
 }
 
 #site-header a {
@@ -47,15 +47,15 @@ body {
 }
 
 #site-header a:hover {
-  color: #a0a0ff;
+  color: #ccc;
 }
 
 #controls {
   position: fixed;
   top: 76px;
   left: 20px;
-  background: rgba(16, 16, 32, 0.9);
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 20px;
   width: 280px;
@@ -85,9 +85,9 @@ body {
 #model-buttons button {
   width: 60px;
   height: 32px;
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  background: rgba(40, 40, 80, 0.6);
+  background: rgba(255, 255, 255, 0.06);
   color: #ccc;
   font-size: 14px;
   cursor: pointer;
@@ -95,13 +95,13 @@ body {
 }
 
 #model-buttons button:hover {
-  background: rgba(80, 80, 160, 0.6);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 #model-buttons button.active {
-  background: rgba(80, 80, 200, 0.8);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
-  border-color: rgba(120, 120, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 #digit-picker {
@@ -117,9 +117,9 @@ body {
 #digit-buttons button {
   width: 36px;
   height: 32px;
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  background: rgba(40, 40, 80, 0.6);
+  background: rgba(255, 255, 255, 0.06);
   color: #ccc;
   font-size: 14px;
   cursor: pointer;
@@ -127,13 +127,13 @@ body {
 }
 
 #digit-buttons button:hover {
-  background: rgba(80, 80, 160, 0.6);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 #digit-buttons button.active {
-  background: rgba(80, 80, 200, 0.8);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
-  border-color: rgba(120, 120, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 #sample-strip {
@@ -157,11 +157,11 @@ body {
 }
 
 #sample-thumbnails canvas:hover {
-  border-color: rgba(100, 100, 200, 0.5);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 #sample-thumbnails canvas.selected {
-  border-color: rgba(120, 120, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 #run-btn {
@@ -189,7 +189,7 @@ body {
 #result {
   margin-top: 14px;
   padding: 10px;
-  background: rgba(40, 40, 80, 0.5);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   text-align: center;
   font-size: 18px;
@@ -208,8 +208,8 @@ body {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: rgba(16, 16, 32, 0.9);
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 16px;
   width: 220px;
@@ -220,7 +220,7 @@ body {
 #legend h3 {
   font-size: 13px;
   font-weight: 600;
-  color: #a0a0ff;
+  color: #e0e0e0;
   margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -309,8 +309,8 @@ body {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: rgba(16, 16, 32, 0.9);
-  border: 1px solid rgba(100, 100, 200, 0.3);
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 6px 12px;
   backdrop-filter: blur(10px);
@@ -320,20 +320,20 @@ body {
 }
 
 #site-footer a {
-  color: #a0a0ff;
+  color: #bbb;
   text-decoration: none;
   transition: color 0.15s;
 }
 
 #site-footer a:hover {
-  color: #c0c0ff;
+  color: #e0e0e0;
 }
 
 #neuron-tooltip {
   position: fixed;
   z-index: 100;
-  background: rgba(16, 16, 32, 0.95);
-  border: 1px solid rgba(100, 100, 200, 0.5);
+  background: rgba(28, 28, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 10px 12px;
   pointer-events: none;
