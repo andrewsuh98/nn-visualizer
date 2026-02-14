@@ -1,0 +1,149 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+#canvas-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(16, 16, 32, 0.9);
+  border: 1px solid rgba(100, 100, 200, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  width: 280px;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+#controls h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #a0a0ff;
+}
+
+#controls label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+#digit-picker {
+  margin-bottom: 14px;
+}
+
+#digit-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#digit-buttons button {
+  width: 36px;
+  height: 32px;
+  border: 1px solid rgba(100, 100, 200, 0.3);
+  border-radius: 6px;
+  background: rgba(40, 40, 80, 0.6);
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#digit-buttons button:hover {
+  background: rgba(80, 80, 160, 0.6);
+}
+
+#digit-buttons button.active {
+  background: rgba(80, 80, 200, 0.8);
+  color: #fff;
+  border-color: rgba(120, 120, 255, 0.6);
+}
+
+#sample-strip {
+  margin-bottom: 14px;
+}
+
+#sample-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#sample-thumbnails canvas {
+  width: 40px;
+  height: 40px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  transition: border-color 0.15s;
+}
+
+#sample-thumbnails canvas:hover {
+  border-color: rgba(100, 100, 200, 0.5);
+}
+
+#sample-thumbnails canvas.selected {
+  border-color: rgba(120, 120, 255, 0.8);
+}
+
+#run-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(100, 200, 100, 0.4);
+  border-radius: 8px;
+  background: rgba(40, 100, 40, 0.5);
+  color: #aaffaa;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#run-btn:hover:not(:disabled) {
+  background: rgba(60, 140, 60, 0.6);
+}
+
+#run-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#result {
+  margin-top: 14px;
+  padding: 10px;
+  background: rgba(40, 40, 80, 0.5);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#result.hidden {
+  display: none;
+}
+
+#result-text {
+  color: #aaffaa;
+}
