@@ -1,13 +1,13 @@
 import { LAYERS, WEIGHT_LAYERS, ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS } from "./constants.js";
 import { resetAllLayers, resetConnections } from "./network.js";
 
-// Multi-stop gradient: dark navy -> teal -> yellow -> hot red
+// Dark-to-cyan gradient: near-black -> deep blue -> bright cyan -> white
 // Uses sqrt curve so mid-range activations are more visible (most ReLU values cluster near 0)
 const COLOR_STOPS = [
-  { t: 0.0, r: 0.05, g: 0.05, b: 0.15 },
-  { t: 0.33, r: 0.0, g: 0.5, b: 0.55 },
-  { t: 0.66, r: 0.95, g: 0.85, b: 0.15 },
-  { t: 1.0, r: 1.0, g: 0.15, b: 0.1 },
+  { t: 0.0, r: 0.02, g: 0.02, b: 0.05 },
+  { t: 0.33, r: 0.0, g: 0.1, b: 0.4 },
+  { t: 0.66, r: 0.0, g: 0.7, b: 0.9 },
+  { t: 1.0, r: 0.85, g: 1.0, b: 1.0 },
 ];
 
 function activationToColor(value, maxVal) {
