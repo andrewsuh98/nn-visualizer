@@ -160,7 +160,7 @@ body {
 }
 
 #result-text {
-  color: #aaffaa;
+  font-weight: 600;
 }
 
 #legend {
