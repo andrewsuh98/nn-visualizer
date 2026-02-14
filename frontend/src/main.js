@@ -4,7 +4,7 @@ import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections, resetAllLayers, resetConnections } from "./network.js";
 import { fetchArchitecture, fetchInferenceDraw, fetchWeights, setModel } from "./api.js";
 import { animateFeedforward } from "./activations.js";
-import { buildLayerConfig, Z_SPACING, CAMERA_TWEEN_MS } from "./constants.js";
+import { buildLayerConfig, Z_SPACING, CAMERA_TWEEN_MS, BG_COLOR_DARK, BG_COLOR_LIGHT } from "./constants.js";
 
 let layerMeshes = null;
 let connectionMeshes = null;
@@ -17,9 +17,35 @@ let cameraTweenId = null;
 let defaultCameraPos = null;
 let defaultCameraTarget = null;
 
+// --- Theme toggle ---
+const isLight = localStorage.getItem("theme") === "light";
+if (isLight) document.body.classList.add("light-mode");
+
 // Initialize Three.js scene
 const container = document.getElementById("canvas-container");
 const { scene, camera, renderer, controls } = createScene(container);
+
+// Apply saved theme to Three.js background
+if (isLight) scene.background.set(BG_COLOR_LIGHT);
+
+const themeToggle = document.getElementById("theme-toggle");
+const sunIcon = document.getElementById("theme-icon-sun");
+const moonIcon = document.getElementById("theme-icon-moon");
+
+function updateThemeIcons() {
+  const light = document.body.classList.contains("light-mode");
+  sunIcon.style.display = light ? "none" : "";
+  moonIcon.style.display = light ? "" : "none";
+}
+updateThemeIcons();
+
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("light-mode");
+  const light = document.body.classList.contains("light-mode");
+  scene.background.set(light ? BG_COLOR_LIGHT : BG_COLOR_DARK);
+  localStorage.setItem("theme", light ? "light" : "dark");
+  updateThemeIcons();
+});
 
 // --- Raycaster + tooltip ---
 const raycaster = new THREE.Raycaster();
@@ -358,9 +384,13 @@ async function runDrawInference() {
   resultText.textContent = `Predicted: ${data.prediction} (${pct}%)`;
   // Soft red -> yellow -> green based on confidence
   const t = Math.max(0, Math.min(1, (maxProb - 0.4) / 0.55));
-  const r = t < 0.5 ? 240 : Math.round(120 + 120 * (1 - t) * 2);
-  const g = t < 0.5 ? Math.round(120 + 120 * t * 2) : 240;
-  resultText.style.color = `rgb(${r}, ${g}, 90)`;
+  const light = document.body.classList.contains("light-mode");
+  const hi = light ? 180 : 240;
+  const lo = light ? 80 : 120;
+  const b = light ? 30 : 90;
+  const r = t < 0.5 ? hi : Math.round(lo + (hi - lo) * (1 - t) * 2);
+  const g = t < 0.5 ? Math.round(lo + (hi - lo) * t * 2) : hi;
+  resultText.style.color = `rgb(${r}, ${g}, ${b})`;
   document.getElementById("result").classList.remove("hidden");
 
   document.getElementById("replay-btn").disabled = false;
