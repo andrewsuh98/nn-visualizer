@@ -329,6 +329,34 @@ body {
   color: #e0e0e0;
 }
 
+#reset-camera {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  color: #888;
+  cursor: pointer;
+  z-index: 10;
+  transition: opacity 0.3s, color 0.15s;
+}
+
+#reset-camera:hover {
+  color: #e0e0e0;
+}
+
+#reset-camera.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 #neuron-tooltip {
   position: fixed;
   z-index: 100;

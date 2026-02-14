@@ -15,6 +15,8 @@ let currentActivations = null;
 let pinnedNeuron = null;
 let isFirstInit = true;
 let cameraTweenId = null;
+let defaultCameraPos = null;
+let defaultCameraTarget = null;
 
 // Initialize Three.js scene
 const container = document.getElementById("canvas-container");
@@ -219,6 +221,9 @@ async function init() {
   const newTarget = new THREE.Vector3(0, 0, zCenter);
   const newPos = new THREE.Vector3(camX, camY, camZ);
 
+  defaultCameraPos = newPos.clone();
+  defaultCameraTarget = newTarget.clone();
+
   if (isFirstInit) {
     camera.position.copy(newPos);
     controls.target.copy(newTarget);
@@ -360,4 +365,25 @@ document.getElementById("run-btn").addEventListener("click", async () => {
 
   btn.textContent = "Run Inference";
   btn.disabled = false;
+});
+
+// --- Reset camera button ---
+const resetBtn = document.getElementById("reset-camera");
+const CAMERA_THRESHOLD = 0.5;
+
+controls.addEventListener("change", () => {
+  if (!defaultCameraPos) return;
+  const posDist = camera.position.distanceTo(defaultCameraPos);
+  const targetDist = controls.target.distanceTo(defaultCameraTarget);
+  if (posDist > CAMERA_THRESHOLD || targetDist > CAMERA_THRESHOLD) {
+    resetBtn.classList.remove("hidden");
+  } else {
+    resetBtn.classList.add("hidden");
+  }
+});
+
+resetBtn.addEventListener("click", () => {
+  if (!defaultCameraPos) return;
+  tweenCamera(defaultCameraPos.clone(), defaultCameraTarget.clone(), CAMERA_TWEEN_MS);
+  resetBtn.classList.add("hidden");
 });
