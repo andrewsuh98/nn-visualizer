@@ -78,8 +78,8 @@ class CNN(nn.Module):
     def get_architecture(self):
         return [
             {"name": "input", "type": "input", "shape": [1, 28, 28], "weight_key": None},
-            {"name": "conv1_block", "type": "conv2d", "shape": [8, 14, 14], "weight_key": None},
-            {"name": "conv2_block", "type": "conv2d", "shape": [16, 7, 7], "weight_key": None},
+            {"name": "conv1_block", "type": "conv2d", "shape": [8, 14, 14], "weight_key": "conv1"},
+            {"name": "conv2_block", "type": "conv2d", "shape": [16, 7, 7], "weight_key": "conv2"},
             {"name": "fc1_relu", "type": "linear", "shape": [64], "weight_key": "fc1"},
             {"name": "logits", "type": "linear", "shape": [10], "weight_key": "fc2"},
         ]
