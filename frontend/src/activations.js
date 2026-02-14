@@ -7,7 +7,7 @@ const COLOR_STOPS = [
   { t: 0.0, r: 0.02, g: 0.02, b: 0.05 },
   { t: 0.33, r: 0.0, g: 0.1, b: 0.4 },
   { t: 0.66, r: 0.0, g: 0.7, b: 0.9 },
-  { t: 1.0, r: 0.85, g: 1.0, b: 1.0 },
+  { t: 1.0, r: 1.0, g: 1.0, b: 1.0 },
 ];
 
 function activationToColor(value, maxVal) {
