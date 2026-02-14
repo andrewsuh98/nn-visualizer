@@ -25,6 +25,15 @@ export async function fetchInference(index) {
   return res.json();
 }
 
+export async function fetchInferenceDraw(pixels) {
+  const res = await fetch(`${API_BASE}/api/inference/draw`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pixels, model: currentModel }),
+  });
+  return res.json();
+}
+
 export async function fetchWeights() {
   const res = await fetch(`${API_BASE}/api/weights?model=${currentModel}`);
   return res.json();

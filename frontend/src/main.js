@@ -1,14 +1,13 @@
 import "./style.css";
 import * as THREE from "three";
 import { createScene } from "./scene.js";
-import { buildNeurons, buildConnections } from "./network.js";
-import { fetchArchitecture, fetchSamples, fetchInference, fetchWeights, setModel } from "./api.js";
+import { buildNeurons, buildConnections, resetAllLayers, resetConnections } from "./network.js";
+import { fetchArchitecture, fetchInferenceDraw, fetchWeights, setModel } from "./api.js";
 import { animateFeedforward } from "./activations.js";
 import { buildLayerConfig, Z_SPACING, CAMERA_TWEEN_MS } from "./constants.js";
 
 let layerMeshes = null;
 let connectionMeshes = null;
-let selectedIndex = null;
 let layers = null;
 let weightLayers = null;
 let currentActivations = null;
@@ -245,18 +244,6 @@ async function init() {
   // Force reflow so the browser registers opacity:0 before removing the class
   legendContainer.offsetHeight;
   legendContainer.classList.remove("fade-out");
-
-  // Build digit buttons from output layer size
-  const outputLayer = layers[layers.length - 1];
-  const numDigits = outputLayer.size;
-  const digitButtonsContainer = document.getElementById("digit-buttons");
-  digitButtonsContainer.innerHTML = "";
-  for (let d = 0; d < numDigits; d++) {
-    const btn = document.createElement("button");
-    btn.textContent = d;
-    btn.addEventListener("click", () => selectDigit(d));
-    digitButtonsContainer.appendChild(btn);
-  }
 }
 
 init();
@@ -270,101 +257,134 @@ modelButtonsContainer.addEventListener("click", async (e) => {
   const modelName = btn.dataset.model;
   setModel(modelName);
 
-  // Update active button
   modelButtonsContainer.querySelectorAll("button").forEach((b) => {
     b.classList.toggle("active", b === btn);
   });
 
-  // Reset UI state
-  selectedIndex = null;
-  document.getElementById("run-btn").disabled = true;
   document.getElementById("result").classList.add("hidden");
-  document.getElementById("sample-thumbnails").innerHTML = "";
+  document.getElementById("replay-btn").disabled = true;
 
-  // Tear down and rebuild
   teardownScene();
   await init();
 });
 
-// --- Digit picker ---
-const digitButtonsContainer = document.getElementById("digit-buttons");
+// --- Drawing canvas ---
+const drawCanvas = document.getElementById("draw-canvas");
+const drawCtx = drawCanvas.getContext("2d");
+let isDrawing = false;
+let debounceTimer = null;
 
-async function selectDigit(digit) {
-  // Update active button
-  digitButtonsContainer.querySelectorAll("button").forEach((b, i) => {
-    b.classList.toggle("active", i === digit);
-  });
+// Fill black initially
+drawCtx.fillStyle = "#000";
+drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
 
-  // Fetch samples and render thumbnails
-  const samples = await fetchSamples(digit);
-  renderThumbnails(samples);
-  selectedIndex = null;
-  document.getElementById("run-btn").disabled = true;
-  document.getElementById("result").classList.add("hidden");
+function getDrawPos(e) {
+  const rect = drawCanvas.getBoundingClientRect();
+  const scaleX = drawCanvas.width / rect.width;
+  const scaleY = drawCanvas.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
 }
 
-// --- Sample thumbnails ---
-function renderThumbnails(samples) {
-  const strip = document.getElementById("sample-thumbnails");
-  strip.innerHTML = "";
-
-  // Derive image dimensions from input layer
-  const inputLayer = layers[0];
-  const side = inputLayer.cols;
-  const pixelCount = inputLayer.size;
-
-  for (const sample of samples) {
-    const canvas = document.createElement("canvas");
-    canvas.width = side;
-    canvas.height = Math.ceil(pixelCount / side);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(canvas.width, canvas.height);
-
-    for (let i = 0; i < pixelCount; i++) {
-      const v = Math.round(sample.pixels[i] * 255);
-      imgData.data[i * 4] = v;
-      imgData.data[i * 4 + 1] = v;
-      imgData.data[i * 4 + 2] = v;
-      imgData.data[i * 4 + 3] = 255;
-    }
-    ctx.putImageData(imgData, 0, 0);
-
-    canvas.addEventListener("click", () => {
-      strip.querySelectorAll("canvas").forEach((c) => c.classList.remove("selected"));
-      canvas.classList.add("selected");
-      selectedIndex = sample.index;
-      document.getElementById("run-btn").disabled = false;
-    });
-
-    strip.appendChild(canvas);
+function startDraw(e) {
+  e.preventDefault();
+  isDrawing = true;
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
+  const pos = getDrawPos(e);
+  drawCtx.beginPath();
+  drawCtx.moveTo(pos.x, pos.y);
+  // Draw a dot for single clicks/taps
+  drawCtx.lineTo(pos.x + 0.1, pos.y + 0.1);
+  drawCtx.strokeStyle = "#fff";
+  drawCtx.lineWidth = 14;
+  drawCtx.lineCap = "round";
+  drawCtx.lineJoin = "round";
+  drawCtx.stroke();
 }
 
-// --- Run inference ---
-document.getElementById("run-btn").addEventListener("click", async () => {
-  if (selectedIndex === null || !connectionMeshes) return;
+function moveDraw(e) {
+  if (!isDrawing) return;
+  e.preventDefault();
+  const pos = getDrawPos(e);
+  drawCtx.lineTo(pos.x, pos.y);
+  drawCtx.stroke();
+}
 
-  const btn = document.getElementById("run-btn");
-  btn.disabled = true;
-  btn.textContent = "Running...";
+function endDraw(e) {
+  if (!isDrawing) return;
+  e.preventDefault();
+  isDrawing = false;
+  // Debounce: run inference 600ms after pen lifts
+  debounceTimer = setTimeout(runDrawInference, 600);
+}
+
+drawCanvas.addEventListener("pointerdown", startDraw);
+drawCanvas.addEventListener("pointermove", moveDraw);
+drawCanvas.addEventListener("pointerup", endDraw);
+drawCanvas.addEventListener("pointerleave", endDraw);
+
+async function runDrawInference() {
+  if (!connectionMeshes) return;
+
+  // Downsample to 28x28
+  const offscreen = document.createElement("canvas");
+  offscreen.width = 28;
+  offscreen.height = 28;
+  const offCtx = offscreen.getContext("2d");
+  offCtx.drawImage(drawCanvas, 0, 0, 28, 28);
+  const imageData = offCtx.getImageData(0, 0, 28, 28);
+  const pixels = [];
+  for (let i = 0; i < 784; i++) {
+    pixels.push(imageData.data[i * 4] / 255); // red channel
+  }
+
   document.getElementById("result").classList.add("hidden");
-
-  currentActivations = null;
   hideTooltip();
 
-  const data = await fetchInference(selectedIndex);
+  const data = await fetchInferenceDraw(pixels);
   await animateFeedforward(layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
   currentActivations = data.activations;
 
-  // Show result
   const maxProb = Math.max(...data.activations.probabilities);
   const pct = (maxProb * 100).toFixed(1);
   document.getElementById("result-text").textContent =
     `Predicted: ${data.prediction} (${pct}%)`;
   document.getElementById("result").classList.remove("hidden");
 
-  btn.textContent = "Run Inference";
-  btn.disabled = false;
+  document.getElementById("replay-btn").disabled = false;
+}
+
+// --- Clear button ---
+document.getElementById("clear-btn").addEventListener("click", () => {
+  drawCtx.fillStyle = "#000";
+  drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+  if (layerMeshes && layers) resetAllLayers(layerMeshes, layers);
+  if (connectionMeshes && weightLayers) resetConnections(connectionMeshes, weightLayers);
+  currentActivations = null;
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("replay-btn").disabled = true;
+  hideTooltip();
+});
+
+// --- Replay button ---
+document.getElementById("replay-btn").addEventListener("click", async () => {
+  if (!currentActivations || !layerMeshes || !connectionMeshes) return;
+  document.getElementById("replay-btn").disabled = true;
+  resetAllLayers(layerMeshes, layers);
+  resetConnections(connectionMeshes, weightLayers);
+  await animateFeedforward(layerMeshes, connectionMeshes, currentActivations, layers, weightLayers);
+  document.getElementById("replay-btn").disabled = false;
 });
 
 // --- Reset camera button ---

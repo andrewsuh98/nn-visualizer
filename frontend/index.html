@@ -27,17 +27,14 @@
         </div>
       </div>
 
-      <div id="digit-picker">
-        <label>Select Digit:</label>
-        <div id="digit-buttons"></div>
+      <div id="draw-section">
+        <label>Draw a Digit:</label>
+        <canvas id="draw-canvas" width="200" height="200"></canvas>
+        <div id="draw-buttons">
+          <button id="clear-btn">Clear</button>
+          <button id="replay-btn" disabled>Replay</button>
+        </div>
       </div>
-
-      <div id="sample-strip">
-        <label>Samples:</label>
-        <div id="sample-thumbnails"></div>
-      </div>
-
-      <button id="run-btn" disabled>Run Inference</button>
 
       <div id="result" class="hidden">
         <span id="result-text"></span>

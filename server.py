@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from torchvision import datasets, transforms
 
 from main import MLP, CNN
@@ -83,6 +84,38 @@ def inference(index: int, model: str = Query(default="mlp")):
 
     return {
         "label": int(label),
+        "prediction": prediction,
+        "activations": activations,
+    }
+
+
+class DrawRequest(BaseModel):
+    pixels: list[float]
+    model: str = "mlp"
+
+
+@app.post("/api/inference/draw")
+def inference_draw(req: DrawRequest):
+    if len(req.pixels) != 784:
+        return {"error": "Expected 784 pixel values"}
+
+    m = get_model(req.model)
+
+    raw_tensor = torch.tensor(req.pixels, dtype=torch.float32).reshape(1, 1, 28, 28)
+    norm_tensor = (raw_tensor - 0.1307) / 0.3081
+
+    with torch.no_grad():
+        logits, intermediates = m.forward_viz(norm_tensor)
+        probs = torch.softmax(logits, dim=1)
+
+    prediction = int(logits.argmax(dim=1).item())
+
+    activations = {"input": req.pixels}
+    for key, tensor in intermediates.items():
+        activations[key] = tensor.squeeze().flatten().tolist()
+    activations["probabilities"] = probs.squeeze().tolist()
+
+    return {
         "prediction": prediction,
         "activations": activations,
     }
