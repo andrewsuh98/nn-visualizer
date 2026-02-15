@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import torch
 import torch.nn as nn
@@ -6,7 +7,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
 
 class MLP(nn.Module):
@@ -176,7 +177,8 @@ def main():
     print(f"Final test accuracy: {accuracy:.2f}%")
 
     save_path = f"models/mnist_{args.model}.pth"
-    torch.save(model.state_dict(), save_path)
+    os.makedirs("models", exist_ok=True)
+    torch.save(model.state_dict(), save_path, pickle_protocol=4)
     print(f"Model saved to {save_path}")
 
 
