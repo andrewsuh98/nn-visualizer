@@ -21,7 +21,7 @@ for name, cls, path in [
     ("cnn", CNN, "models/mnist_cnn.pth"),
 ]:
     m = cls()
-    m.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
+    m.load_state_dict(torch.load(path, map_location="cpu", weights_only=False))
     m.eval()
     MODELS[name] = m
 
