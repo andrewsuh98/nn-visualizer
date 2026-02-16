@@ -152,27 +152,39 @@ def weights(model: str = Query(default="mlp")):
                     })
             result[name] = connections
         elif isinstance(module, nn.Conv2d):
-            w = module.weight.data  # shape: (out_ch, in_ch, kH, kW)
-            out_ch, in_ch = w.shape[:2]
-            importance = w.abs().sum(dim=(2, 3))  # shape: (out_ch, in_ch)
-            signed = w.sum(dim=(2, 3))  # shape: (out_ch, in_ch)
+            w = module.weight.data  # (out_ch, in_ch, kH, kW)
+            out_ch, in_ch, kH, kW = w.shape
+            importance = w.abs().sum(dim=(2, 3))  # (out_ch, in_ch)
 
             src_shape = key_to_shapes[name][0]  # e.g. [1, 28, 28] or [8, 14, 14]
             dst_shape = key_to_shapes[name][1]  # e.g. [8, 14, 14] or [16, 7, 7]
             src_h, src_w = src_shape[1], src_shape[2]
             dst_h, dst_w = dst_shape[1], dst_shape[2]
 
+            pad = module.padding[0]
+            pool_stride = src_h // dst_h  # 2 for both conv layers
+
+            # Representative destination pixel: center of output feature map
+            dst_row = dst_h // 2
+            dst_col = dst_w // 2
+
             connections = []
             k = min(top_k, in_ch)
-            for dst_c in range(out_ch):
-                _, top_indices = importance[dst_c].topk(k)
-                dst_flat = dst_c * dst_h * dst_w + (dst_h // 2) * dst_w + (dst_w // 2)
-                for src_c in top_indices.tolist():
-                    src_flat = src_c * src_h * src_w + (src_h // 2) * src_w + (src_w // 2)
-                    connections.append({
-                        "src": src_flat,
-                        "dst": dst_flat,
-                        "weight": float(signed[dst_c, src_c]),
-                    })
+            for dst_ch in range(out_ch):
+                _, top_indices = importance[dst_ch].topk(k)
+                dst_flat = dst_ch * dst_h * dst_w + dst_row * dst_w + dst_col
+
+                for src_ch in top_indices.tolist():
+                    for dr in range(kH):
+                        for dc in range(kW):
+                            src_row = pool_stride * dst_row + dr - pad
+                            src_col = pool_stride * dst_col + dc - pad
+                            if 0 <= src_row < src_h and 0 <= src_col < src_w:
+                                src_flat = src_ch * src_h * src_w + src_row * src_w + src_col
+                                connections.append({
+                                    "src": src_flat,
+                                    "dst": dst_flat,
+                                    "weight": float(w[dst_ch, src_ch, dr, dc]),
+                                })
             result[name] = connections
     return result

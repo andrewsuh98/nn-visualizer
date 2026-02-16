@@ -1,5 +1,6 @@
-import { ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS } from "./constants.js";
-import { resetAllLayers, resetConnections } from "./network.js";
+import * as THREE from "three";
+import { ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS, SCAN_STEP_MS, SCAN_HIGHLIGHT_COLOR, CONV_KERNEL_SIZE } from "./constants.js";
+import { resetAllLayers, resetConnections, neuronPosition } from "./network.js";
 
 // Dark-to-cyan gradient: near-black -> deep blue -> bright cyan -> white
 // Uses sqrt curve so mid-range activations are more visible (most ReLU values cluster near 0)
@@ -49,6 +50,119 @@ function layerColors(layerName, values) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Create a wireframe rectangle sized to cover a 3x3 kernel patch
+function createScanWindow(spacing) {
+  const size = CONV_KERNEL_SIZE * spacing;
+  const half = size / 2;
+  const vertices = new Float32Array([
+    -half,  half, 0,
+     half,  half, 0,
+     half, -half, 0,
+    -half, -half, 0,
+  ]);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  const material = new THREE.LineBasicMaterial({ color: 0xffee33 });
+  return new THREE.LineLoop(geometry, material);
+}
+
+// Animate a 3x3 kernel scanning across one output channel of a conv layer
+async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivationValues) {
+  // Source spatial dimensions
+  const srcH = srcLayer.type === "input" ? srcLayer.rows : srcLayer.mapH;
+  const srcW = srcLayer.type === "input" ? srcLayer.cols : srcLayer.mapW;
+
+  // Destination spatial dimensions
+  const dstH = dstLayer.mapH;
+  const dstW = dstLayer.mapW;
+
+  // Pool stride (conv+pool combined)
+  const poolStride = srcH / dstH;
+
+  const srcChannel = 0;
+  const dstChannel = 0;
+
+  // Create and add wireframe
+  const scanWindow = createScanWindow(srcLayer.spacing);
+  scene.add(scanWindow);
+
+  const srcMesh = layerMeshes[srcLayer.name];
+  const dstMesh = layerMeshes[dstLayer.name];
+
+  const maxVal = Math.max(...dstActivationValues);
+
+  const offsets = [-1, 0, 1];
+
+  for (let r = 0; r < dstH; r++) {
+    for (let c = 0; c < dstW; c++) {
+      // Center position in source
+      const centerRow = poolStride * r;
+      const centerCol = poolStride * c;
+      let centerFlatIdx;
+      if (srcLayer.type === "input") {
+        centerFlatIdx = centerRow * srcW + centerCol;
+      } else {
+        centerFlatIdx = srcChannel * srcH * srcW + centerRow * srcW + centerCol;
+      }
+
+      // Position wireframe at source center
+      const centerPos = neuronPosition(srcLayer, centerFlatIdx);
+      scanWindow.position.set(centerPos.x, centerPos.y, centerPos.z + 0.5);
+
+      // Highlight source patch and save original colors
+      const savedColors = [];
+      for (const dr of offsets) {
+        for (const dc of offsets) {
+          const srcRow = centerRow + dr;
+          const srcCol = centerCol + dc;
+          if (srcRow >= 0 && srcRow < srcH && srcCol >= 0 && srcCol < srcW) {
+            let flatIdx;
+            if (srcLayer.type === "input") {
+              flatIdx = srcRow * srcW + srcCol;
+            } else {
+              flatIdx = srcChannel * srcH * srcW + srcRow * srcW + srcCol;
+            }
+            const arr = srcMesh.instanceColor.array;
+            const base = flatIdx * 3;
+            savedColors.push({ flatIdx, r: arr[base], g: arr[base + 1], b: arr[base + 2] });
+            arr[base] = SCAN_HIGHLIGHT_COLOR[0];
+            arr[base + 1] = SCAN_HIGHLIGHT_COLOR[1];
+            arr[base + 2] = SCAN_HIGHLIGHT_COLOR[2];
+          }
+        }
+      }
+      srcMesh.instanceColor.needsUpdate = true;
+
+      // Light up destination neuron
+      const dstFlatIdx = dstChannel * dstH * dstW + r * dstW + c;
+      const color = activationToColor(dstActivationValues[dstFlatIdx], maxVal);
+      const dstArr = dstMesh.instanceColor.array;
+      const dstBase = dstFlatIdx * 3;
+      dstArr[dstBase] = color[0];
+      dstArr[dstBase + 1] = color[1];
+      dstArr[dstBase + 2] = color[2];
+      dstMesh.instanceColor.needsUpdate = true;
+
+      await sleep(SCAN_STEP_MS);
+
+      // Restore source patch colors
+      for (const saved of savedColors) {
+        const base = saved.flatIdx * 3;
+        const arr = srcMesh.instanceColor.array;
+        arr[base] = saved.r;
+        arr[base + 1] = saved.g;
+        arr[base + 2] = saved.b;
+      }
+      srcMesh.instanceColor.needsUpdate = true;
+    }
+  }
+
+  // Cleanup wireframe
+  scene.remove(scanWindow);
+  scanWindow.geometry.dispose();
+  scanWindow.material.dispose();
 }
 
 // Tween connection opacity from 0 to target over duration ms
@@ -116,7 +230,7 @@ function buildWeightLookup(layers, weightLayers) {
 }
 
 // Run the full feedforward animation sequence
-export async function animateFeedforward(layerMeshes, connectionMeshes, activations, layers, weightLayers) {
+export async function animateFeedforward(scene, layerMeshes, connectionMeshes, activations, layers, weightLayers) {
   resetAllLayers(layerMeshes, layers);
   resetConnections(connectionMeshes, weightLayers);
 
@@ -140,6 +254,14 @@ export async function animateFeedforward(layerMeshes, connectionMeshes, activati
     // Color neurons
     const layer = layers[i];
     const colors = layerColors(layer.name, activations[layer.name]);
+
+    // Scanning animation for conv layers
+    if (layer.type === "conv2d" && wl) {
+      const srcLayer = layers[wl.srcIdx];
+      await scanConvLayer(scene, layerMeshes, srcLayer, layer, activations[layer.name]);
+    }
+
+    // Tween all neurons to final colors (fills remaining channels after scan, or full layer for non-conv)
     await tweenLayerColors(layerMeshes, layer, colors, ANIMATION_TWEEN_MS);
   }
 

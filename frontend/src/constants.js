@@ -6,6 +6,10 @@ export const ANIMATION_LAYER_DELAY = 800;
 export const ANIMATION_TWEEN_MS = 300;
 export const CAMERA_TWEEN_MS = 600;
 
+export const SCAN_STEP_MS = 15;
+export const SCAN_HIGHLIGHT_COLOR = [1.0, 0.9, 0.2];
+export const CONV_KERNEL_SIZE = 3;
+
 export const BG_COLOR_DARK = 0x2a2a2a;
 export const BG_COLOR_LIGHT = 0xf0f0f0;
 export const BG_COLOR = BG_COLOR_DARK;
