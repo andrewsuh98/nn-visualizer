@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { createScene } from "./scene.js";
 import { buildNeurons, buildConnections, resetAllLayers, resetConnections } from "./network.js";
 import { fetchArchitecture, fetchInferenceDraw, fetchWeights, setModel } from "./api.js";
-import { animateFeedforward } from "./activations.js";
+import { animateFeedforward, cancelAnimation } from "./activations.js";
 import { buildLayerConfig, Z_SPACING, CAMERA_TWEEN_MS, BG_COLOR_DARK, BG_COLOR_LIGHT } from "./constants.js";
 
 let layerMeshes = null;
@@ -167,6 +167,7 @@ function tweenCamera(targetPos, targetLookAt, duration) {
 let sceneObjects = [];
 
 function teardownScene() {
+  cancelAnimation();
   for (const obj of sceneObjects) {
     scene.remove(obj);
     if (obj.geometry) obj.geometry.dispose();
@@ -389,7 +390,8 @@ async function runDrawInference() {
   hideTooltip();
 
   const data = await fetchInferenceDraw(pixels);
-  await animateFeedforward(scene, layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
+  const result = await animateFeedforward(scene, layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
+  if (!result) return; // animation was cancelled
   currentActivations = data.activations;
 
   const maxProb = Math.max(...data.activations.probabilities);
@@ -412,6 +414,7 @@ async function runDrawInference() {
 
 // --- Clear button ---
 document.getElementById("clear-btn").addEventListener("click", () => {
+  cancelAnimation();
   drawCtx.fillStyle = "#000";
   drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
   if (debounceTimer) {

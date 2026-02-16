@@ -2,6 +2,9 @@ import * as THREE from "three";
 import { ANIMATION_LAYER_DELAY, ANIMATION_TWEEN_MS, SCAN_STEP_MS, SCAN_HIGHLIGHT_COLOR, CONV_KERNEL_SIZE } from "./constants.js";
 import { resetAllLayers, resetConnections, neuronPosition } from "./network.js";
 
+let animationGen = 0;
+export function cancelAnimation() { animationGen++; }
+
 // Dark-to-cyan gradient: near-black -> deep blue -> bright cyan -> white
 // Uses sqrt curve so mid-range activations are more visible (most ReLU values cluster near 0)
 const COLOR_STOPS = [
@@ -48,8 +51,8 @@ function layerColors(layerName, values) {
   return values.map((v) => activationToColor(v, maxVal));
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms, gen) {
+  return new Promise((resolve) => setTimeout(() => resolve(gen === animationGen), ms));
 }
 
 // Create a wireframe rectangle sized to cover a 3x3 kernel patch
@@ -69,7 +72,7 @@ function createScanWindow(spacing) {
 }
 
 // Animate a 3x3 kernel scanning across one output channel of a conv layer
-async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivationValues) {
+async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivationValues, gen) {
   // Source spatial dimensions
   const srcH = srcLayer.type === "input" ? srcLayer.rows : srcLayer.mapH;
   const srcW = srcLayer.type === "input" ? srcLayer.cols : srcLayer.mapW;
@@ -96,7 +99,9 @@ async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivati
   const offsets = [-1, 0, 1];
 
   for (let r = 0; r < dstH; r++) {
+    if (gen !== animationGen) break;
     for (let c = 0; c < dstW; c++) {
+      if (gen !== animationGen) break;
       // Center position in source
       const centerRow = poolStride * r;
       const centerCol = poolStride * c;
@@ -145,7 +150,22 @@ async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivati
       dstArr[dstBase + 2] = color[2];
       dstMesh.instanceColor.needsUpdate = true;
 
-      await sleep(SCAN_STEP_MS);
+      const alive = await sleep(SCAN_STEP_MS, gen);
+      if (!alive) {
+        // Restore source patch before bailing
+        for (const saved of savedColors) {
+          const base = saved.flatIdx * 3;
+          const arr = srcMesh.instanceColor.array;
+          arr[base] = saved.r;
+          arr[base + 1] = saved.g;
+          arr[base + 2] = saved.b;
+        }
+        srcMesh.instanceColor.needsUpdate = true;
+        scene.remove(scanWindow);
+        scanWindow.geometry.dispose();
+        scanWindow.material.dispose();
+        return;
+      }
 
       // Restore source patch colors
       for (const saved of savedColors) {
@@ -166,11 +186,12 @@ async function scanConvLayer(scene, layerMeshes, srcLayer, dstLayer, dstActivati
 }
 
 // Tween connection opacity from 0 to target over duration ms
-function tweenOpacity(lineMesh, target, duration) {
+function tweenOpacity(lineMesh, target, duration, gen) {
   return new Promise((resolve) => {
     const start = performance.now();
     const initial = lineMesh.material.opacity;
     function step(now) {
+      if (gen !== animationGen) { resolve(); return; }
       const t = Math.min((now - start) / duration, 1);
       lineMesh.material.opacity = initial + (target - initial) * t;
       if (t < 1) {
@@ -184,7 +205,7 @@ function tweenOpacity(lineMesh, target, duration) {
 }
 
 // Tween layer colors from current to target over duration ms
-function tweenLayerColors(layerMeshes, layer, targetColors, duration) {
+function tweenLayerColors(layerMeshes, layer, targetColors, duration, gen) {
   return new Promise((resolve) => {
     const mesh = layerMeshes[layer.name];
     const startColors = [];
@@ -198,6 +219,7 @@ function tweenLayerColors(layerMeshes, layer, targetColors, duration) {
     const startTime = performance.now();
 
     function step(now) {
+      if (gen !== animationGen) { resolve(); return; }
       const t = Math.min((now - startTime) / duration, 1);
       const eased = t * t * (3 - 2 * t); // smoothstep
       for (let i = 0; i < layer.size; i++) {
@@ -231,6 +253,8 @@ function buildWeightLookup(layers, weightLayers) {
 
 // Run the full feedforward animation sequence
 export async function animateFeedforward(scene, layerMeshes, connectionMeshes, activations, layers, weightLayers) {
+  const gen = ++animationGen;
+
   resetAllLayers(layerMeshes, layers);
   resetConnections(connectionMeshes, weightLayers);
 
@@ -239,16 +263,19 @@ export async function animateFeedforward(scene, layerMeshes, connectionMeshes, a
   // Step 1: Light up input layer
   const inputLayer = layers[0];
   const inputColors = layerColors(inputLayer.name, activations.input);
-  await tweenLayerColors(layerMeshes, inputLayer, inputColors, ANIMATION_TWEEN_MS);
+  await tweenLayerColors(layerMeshes, inputLayer, inputColors, ANIMATION_TWEEN_MS, gen);
+  if (gen !== animationGen) return null;
 
   // Steps 2+: For each subsequent layer, fade in connections (if any) then color neurons
   for (let i = 1; i < layers.length; i++) {
-    await sleep(ANIMATION_LAYER_DELAY);
+    const alive = await sleep(ANIMATION_LAYER_DELAY, gen);
+    if (!alive) return null;
 
     // Fade in connections if this layer has weight connections
     const wl = weightLookup[i];
     if (wl && connectionMeshes[wl.weightKey]) {
-      await tweenOpacity(connectionMeshes[wl.weightKey], 0.6, ANIMATION_TWEEN_MS);
+      await tweenOpacity(connectionMeshes[wl.weightKey], 0.6, ANIMATION_TWEEN_MS, gen);
+      if (gen !== animationGen) return null;
     }
 
     // Color neurons
@@ -258,11 +285,13 @@ export async function animateFeedforward(scene, layerMeshes, connectionMeshes, a
     // Scanning animation for conv layers
     if (layer.type === "conv2d" && wl) {
       const srcLayer = layers[wl.srcIdx];
-      await scanConvLayer(scene, layerMeshes, srcLayer, layer, activations[layer.name]);
+      await scanConvLayer(scene, layerMeshes, srcLayer, layer, activations[layer.name], gen);
+      if (gen !== animationGen) return null;
     }
 
     // Tween all neurons to final colors (fills remaining channels after scan, or full layer for non-conv)
-    await tweenLayerColors(layerMeshes, layer, colors, ANIMATION_TWEEN_MS);
+    await tweenLayerColors(layerMeshes, layer, colors, ANIMATION_TWEEN_MS, gen);
+    if (gen !== animationGen) return null;
   }
 
   return activations;
