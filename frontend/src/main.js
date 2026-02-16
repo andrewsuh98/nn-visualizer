@@ -389,7 +389,7 @@ async function runDrawInference() {
   hideTooltip();
 
   const data = await fetchInferenceDraw(pixels);
-  await animateFeedforward(layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
+  await animateFeedforward(scene, layerMeshes, connectionMeshes, data.activations, layers, weightLayers);
   currentActivations = data.activations;
 
   const maxProb = Math.max(...data.activations.probabilities);
@@ -432,7 +432,7 @@ document.getElementById("replay-btn").addEventListener("click", async () => {
   document.getElementById("replay-btn").disabled = true;
   resetAllLayers(layerMeshes, layers);
   resetConnections(connectionMeshes, weightLayers);
-  await animateFeedforward(layerMeshes, connectionMeshes, currentActivations, layers, weightLayers);
+  await animateFeedforward(scene, layerMeshes, connectionMeshes, currentActivations, layers, weightLayers);
   document.getElementById("replay-btn").disabled = false;
 });
 
